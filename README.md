@@ -379,7 +379,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ## 📊 Project Status
 
-- ✅ **MVP Complete** (v1.0.0)
+- ✅ **MVP Complete** (v1.0.0) - In Progress  
 - 🏗️ **Testing Suite** (v1.1.0) - In Progress  
 - 📅 **OAuth Integration** (v1.1.0) - Planned
 - 🔔 **Notifications** (v1.2.0) - Planned
@@ -406,14 +406,6 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 👥 Team
-
-**Created by:** Senior Full-Stack Engineering Team
-
-**Maintained by:** JobSift Core Team
 
 ---
 
