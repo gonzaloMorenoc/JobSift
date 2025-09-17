@@ -43,13 +43,26 @@
 ### Prerequisites
 - **Docker Desktop** 4.0+
 - **Node.js** 18+ (for local development)
-- **Python** 3.12+ (for local development)
+- **Python** 3.11+ (for local development)
+
+### Platform Support
+- **macOS** (Intel & Apple Silicon)
+- **Linux** (Ubuntu, Debian, RHEL, CentOS, Fedora)
+- **Windows** (via WSL2 recommended)
 
 ### One-Command Setup
 ```bash
 git clone https://github.com/jobsift/jobsift.git
 cd jobsift
-make dev
+
+# Option 1: Ultimate fix (handles all common issues)
+make quick-start
+
+# Option 2: Simple Docker-only setup
+make quickstart-simple
+
+# Option 3: Diagnose issues first
+make diagnose
 ```
 
 That's it! 🎉
@@ -128,27 +141,27 @@ JobSift follows a modern full-stack architecture designed for scalability and ma
 git clone https://github.com/jobsift/jobsift.git
 cd jobsift
 
-# 2. Copy environment files
-cp backend/.env.example backend/.env
-cp frontend/.env.example frontend/.env
+# 2. One-command setup (cross-platform)
+chmod +x scripts/fix-permissions.sh
+./scripts/fix-permissions.sh
+make quickstart
 
-# 3. Generate secure secret key
-openssl rand -base64 32  # Copy this to backend/.env SECRET_KEY
-
-# 4. Start all services
-make dev
-# OR: docker-compose up -d
-
-# 5. Open your browser
-open http://localhost:5173
+# Alternative: Manual setup
+# make setup && make dev-docker
 ```
 
 ### Option 2: Local Development
 
 **Prerequisites:**
 - Node.js 18+
-- Python 3.12+
+- Python 3.11+
 - PostgreSQL 14+
+
+**Auto-install dependencies** (optional):
+```bash
+# Install missing dependencies automatically
+./scripts/install-deps.sh
+```
 
 **Backend Setup:**
 ```bash
@@ -400,6 +413,12 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 [![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 
 </div>
+
+### Cross-Platform Compatibility
+- **Universal Scripts**: All setup scripts work on macOS, Linux, and Windows (WSL)
+- **Automatic Detection**: OS-specific commands and tools detected automatically  
+- **Docker Compose**: Supports both `docker-compose` and `docker compose` commands
+- **Dependencies**: Auto-installation of Python, Node.js, and dependency checks
 
 ---
 

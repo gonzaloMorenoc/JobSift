@@ -1,5 +1,21 @@
 .PHONY: dev db-up db-down db-reset migrate migration seed test format lint build clean help setup health
 
+# Detect OS and set appropriate commands
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+    OPEN_CMD = open
+    SED_INPLACE = sed -i ''
+else
+    OPEN_CMD = xdg-open
+    SED_INPLACE = sed -i
+endif
+
+# Detect Docker Compose command
+DOCKER_COMPOSE := $(shell command -v docker-compose 2> /dev/null)
+ifndef DOCKER_COMPOSE
+    DOCKER_COMPOSE := docker compose
+endif
+
 # Colors for output
 BLUE=\033[0;34m
 GREEN=\033[0;32m
@@ -19,7 +35,7 @@ setup: ## Complete development environment setup
 
 dev: ## Start full development environment
 	@echo "${BLUE}Starting JobSift development environment...${NC}"
-	docker-compose up -d db redis
+	$(DOCKER_COMPOSE) up -d db redis
 	@echo "${YELLOW}Waiting for database to be ready...${NC}"
 	@sleep 5
 	@make migrate
@@ -31,25 +47,40 @@ dev: ## Start full development environment
 
 dev-docker: ## Start development with Docker Compose
 	@echo "${BLUE}Starting with Docker Compose...${NC}"
-	docker-compose up --build
+	$(DOCKER_COMPOSE) up --build
 
 health: ## Run system health checks
 	@echo "${BLUE}Running system health checks...${NC}"
 	@chmod +x scripts/health-check.sh
 	@./scripts/health-check.sh
 
+diagnose: ## Run comprehensive system diagnostics
+	@echo "${BLUE}Running system diagnostics...${NC}"
+	@chmod +x scripts/diagnose.sh
+	@./scripts/diagnose.sh
+
+generate-key: ## Generate new SECRET_KEY for backend
+	@echo "${BLUE}Generating new SECRET_KEY...${NC}"
+	@chmod +x scripts/generate-key.sh
+	@./scripts/generate-key.sh
+
+generate-lockfile: ## Generate package-lock.json for frontend
+	@echo "${BLUE}Generating frontend lockfile...${NC}"
+	@chmod +x scripts/generate-lockfile.sh
+	@./scripts/generate-lockfile.sh
+
 db-up: ## Start database services
 	@echo "${BLUE}Starting database services...${NC}"
-	docker-compose up -d db redis
+	$(DOCKER_COMPOSE) up -d db redis
 
 db-down: ## Stop database services
 	@echo "${YELLOW}Stopping database services...${NC}"
-	docker-compose down
+	$(DOCKER_COMPOSE) down
 
 db-reset: ## Reset database completely
 	@echo "${RED}Resetting database... (this will delete all data)${NC}"
-	docker-compose down -v
-	docker-compose up -d db
+	$(DOCKER_COMPOSE) down -v
+	$(DOCKER_COMPOSE) up -d db
 	@echo "${YELLOW}Waiting for database to be ready...${NC}"
 	@sleep 5
 	@make migrate
@@ -134,20 +165,20 @@ pre-commit: ## Run pre-commit checks
 
 clean: ## Clean up Docker resources
 	@echo "${YELLOW}Cleaning up Docker resources...${NC}"
-	docker-compose down -v --remove-orphans
+	$(DOCKER_COMPOSE) down -v --remove-orphans
 	docker system prune -f
 
 logs: ## Show application logs
 	@echo "${BLUE}Showing logs...${NC}"
-	docker-compose logs -f
+	$(DOCKER_COMPOSE) logs -f
 
 logs-backend: ## Show backend logs only
 	@echo "${BLUE}Showing backend logs...${NC}"
-	docker-compose logs -f backend
+	$(DOCKER_COMPOSE) logs -f backend
 
 logs-db: ## Show database logs only
 	@echo "${BLUE}Showing database logs...${NC}"
-	docker-compose logs -f db
+	$(DOCKER_COMPOSE) logs -f db
 
 shell-backend: ## Open backend shell
 	@echo "${BLUE}Opening backend shell...${NC}"
@@ -155,11 +186,11 @@ shell-backend: ## Open backend shell
 
 shell-db: ## Open database shell
 	@echo "${BLUE}Opening database shell...${NC}"
-	docker-compose exec db psql -U jobsift_user -d jobsift_db
+	$(DOCKER_COMPOSE) exec db psql -U jobsift_user -d jobsift_db
 
 backup-db: ## Backup database
 	@echo "${BLUE}Creating database backup...${NC}"
-	docker-compose exec db pg_dump -U jobsift_user jobsift_db > backup_$(shell date +%Y%m%d_%H%M%S).sql
+	$(DOCKER_COMPOSE) exec db pg_dump -U jobsift_user jobsift_db > backup_$(shell date +%Y%m%d_%H%M%S).sql
 	@echo "${GREEN}Backup created: backup_$(shell date +%Y%m%d_%H%M%S).sql${NC}"
 
 restore-db: ## Restore database from backup (usage: make restore-db file="backup.sql")
@@ -170,12 +201,12 @@ restore-db: ## Restore database from backup (usage: make restore-db file="backup
 	fi
 	@echo "${BLUE}Restoring database from $(file)...${NC}"
 	@make db-reset
-	docker-compose exec -T db psql -U jobsift_user -d jobsift_db < $(file)
+	$(DOCKER_COMPOSE) exec -T db psql -U jobsift_user -d jobsift_db < $(file)
 	@echo "${GREEN}Database restored successfully${NC}"
 
 status: ## Show services status
 	@echo "${BLUE}Services status:${NC}"
-	@docker-compose ps
+	@$(DOCKER_COMPOSE) ps
 	@echo "\n${BLUE}URLs:${NC}"
 	@echo "${GREEN}Frontend:${NC} http://localhost:5173"
 	@echo "${GREEN}Backend API:${NC} http://localhost:8000/api/v1"
@@ -192,15 +223,15 @@ demo: ## Quick demo setup (setup + start + health check)
 # Production commands
 prod-build: ## Build for production
 	@echo "${BLUE}Building for production...${NC}"
-	docker-compose -f docker-compose.yml -f docker-compose.prod.yml build
+	$(DOCKER_COMPOSE) -f docker-compose.yml -f docker-compose.prod.yml build
 
 prod-up: ## Start production environment
 	@echo "${BLUE}Starting production environment...${NC}"
-	docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+	$(DOCKER_COMPOSE) -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 prod-down: ## Stop production environment
 	@echo "${YELLOW}Stopping production environment...${NC}"
-	docker-compose -f docker-compose.yml -f docker-compose.prod.yml down
+	$(DOCKER_COMPOSE) -f docker-compose.yml -f docker-compose.prod.yml down
 
 # Quick start for new developers
 quickstart: ## Complete quickstart for new developers
@@ -211,6 +242,35 @@ quickstart: ## Complete quickstart for new developers
 	@echo "${YELLOW}Waiting for services to be ready...${NC}"
 	@sleep 30
 	@make health
+	@echo ""
+	@echo "${GREEN}🎉 JobSift is ready!${NC}"
+	@echo "Visit: http://localhost:5173"
+	@echo "Login: demo@jobsift.com / demo123456"
+
+quick-start: ## One-command solution for all common issues
+	@echo "${GREEN}🚀 JobSift Quick Start${NC}"
+	@echo "Fixes common issues and starts the application"
+	@chmod +x scripts/quick-start.sh
+	@./scripts/quick-start.sh
+
+quickstart-simple: ## Docker-only quickstart (most reliable)
+	@echo "${GREEN}🚀 JobSift Simple Quickstart${NC}"
+	@echo "Using Docker-only setup for maximum reliability"
+	@chmod +x scripts/setup-dev.sh
+	@echo "${BLUE}📋 Creating environment files...${NC}"
+	@if [ ! -f backend/.env ]; then cp backend/.env.example backend/.env; fi
+	@if [ ! -f frontend/.env ]; then cp frontend/.env.example frontend/.env; fi
+	@echo "${BLUE}📦 Preparing frontend dependencies...${NC}"
+	@chmod +x scripts/generate-lockfile.sh
+	@./scripts/generate-lockfile.sh
+	@echo "${BLUE}🛑 Stopping any existing containers...${NC}"
+	$(DOCKER_COMPOSE) down --remove-orphans > /dev/null 2>&1 || true
+	@echo "${BLUE}🏗️  Building and starting all services...${NC}"
+	$(DOCKER_COMPOSE) up --build -d
+	@echo "${YELLOW}⏳ Waiting for services to be ready...${NC}"
+	@sleep 45
+	@echo "${BLUE}🔍 Running health checks...${NC}"
+	@make health || echo "${YELLOW}⚠️  Some services may still be starting...${NC}"
 	@echo ""
 	@echo "${GREEN}🎉 JobSift is ready!${NC}"
 	@echo "Visit: http://localhost:5173"
