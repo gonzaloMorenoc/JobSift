@@ -14,6 +14,30 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Universal Docker Compose function
+get_docker_compose_cmd() {
+    if command -v docker-compose &> /dev/null; then
+        echo "docker-compose"
+    elif docker compose version &> /dev/null 2>&1; then
+        echo "docker compose"
+    else
+        echo "docker-compose"  # fallback
+    fi
+}
+
+DOCKER_COMPOSE=$(get_docker_compose_cmd)
+
+# Detect OS
+detect_os() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "macos"
+    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        echo "linux"
+    else
+        echo "unknown"
+    fi
+}
+
 # Check if Docker is running
 if ! docker info > /dev/null 2>&1; then
     echo -e "${RED}❌ Docker is not running${NC}"
@@ -25,8 +49,8 @@ echo -e "${BLUE}📊 Checking service status...${NC}"
 
 services=("db" "backend" "frontend")
 for service in "${services[@]}"; do
-    if docker-compose ps -q $service > /dev/null 2>&1; then
-        status=$(docker-compose ps $service | grep $service | awk '{print $3}')
+    if $DOCKER_COMPOSE ps -q $service > /dev/null 2>&1; then
+        status=$($DOCKER_COMPOSE ps $service | grep $service | awk '{print $3}' || echo "Unknown")
         if [[ "$status" == "Up" ]]; then
             echo -e "${GREEN}✅ $service is running${NC}"
         else
@@ -40,11 +64,11 @@ done
 # Health check functions
 check_database() {
     echo -e "${BLUE}🗄️  Checking database connection...${NC}"
-    if docker-compose exec -T db pg_isready -U jobsift_user -d jobsift_db > /dev/null 2>&1; then
+    if $DOCKER_COMPOSE exec -T db pg_isready -U jobsift_user -d jobsift_db > /dev/null 2>&1; then
         echo -e "${GREEN}✅ Database is healthy${NC}"
         
         # Check if tables exist
-        table_count=$(docker-compose exec -T db psql -U jobsift_user -d jobsift_db -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" | xargs)
+        table_count=$($DOCKER_COMPOSE exec -T db psql -U jobsift_user -d jobsift_db -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" | xargs)
         if [[ $table_count -gt 0 ]]; then
             echo -e "${GREEN}✅ Database tables exist ($table_count tables)${NC}"
         else
@@ -52,7 +76,7 @@ check_database() {
         fi
         
         # Check if demo user exists
-        user_count=$(docker-compose exec -T db psql -U jobsift_user -d jobsift_db -t -c "SELECT count(*) FROM users WHERE email = 'demo@jobsift.com';" 2>/dev/null | xargs || echo "0")
+        user_count=$($DOCKER_COMPOSE exec -T db psql -U jobsift_user -d jobsift_db -t -c "SELECT count(*) FROM users WHERE email = 'demo@jobsift.com';" 2>/dev/null | xargs || echo "0")
         if [[ $user_count -gt 0 ]]; then
             echo -e "${GREEN}✅ Demo user exists${NC}"
         else
@@ -197,13 +221,26 @@ echo "   Email: demo@jobsift.com"
 echo "   Password: demo123456"
 echo ""
 
-# Optional: Open browser
-if command -v open &> /dev/null; then
-    echo -e "${BLUE}🌐 Opening application in browser...${NC}"
-    open http://localhost:5173
-elif command -v xdg-open &> /dev/null; then
-    echo -e "${BLUE}🌐 Opening application in browser...${NC}"
-    xdg-open http://localhost:5173
-fi
+# Optional: Open browser (cross-platform)
+echo -e "${BLUE}🌐 Opening application in browser...${NC}"
+case $(detect_os) in
+    "macos")
+        if command -v open &> /dev/null; then
+            open http://localhost:5173 &
+        fi
+        ;;
+    "linux")
+        if command -v xdg-open &> /dev/null; then
+            xdg-open http://localhost:5173 &
+        elif command -v firefox &> /dev/null; then
+            firefox http://localhost:5173 &
+        elif command -v chromium-browser &> /dev/null; then
+            chromium-browser http://localhost:5173 &
+        fi
+        ;;
+    *)
+        echo "Please open http://localhost:5173 in your browser"
+        ;;
+esac
 
 echo -e "${GREEN}✨ JobSift is ready to use!${NC}"
